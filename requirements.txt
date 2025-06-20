@@ -1,7 +1,10 @@
-sklearn
+scikit-learn
 pandas
-numpy
-spacy
-heapq
+numpy==1.23.5
+spacy==3.5.0
+streamlit
+matplotlib
+
+# After installing, run: python postinstall.py
 
 

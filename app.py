@@ -1,102 +1,95 @@
-import spacy
-import re
-import math
+import streamlit as st
+from definations import *
 import pandas as pd
 import numpy as np
-from spacy.lang.en.stop_words import STOP_WORDS
-from string import punctuation
-nlp = spacy.load("en_core_web_sm")
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
-from heapq import nlargest
+import re
+import spacy
 import string
-from definations import *
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import GradientBoostingClassifier
+from heapq import nlargest
 
+# Load spaCy NLP model
+nlp = spacy.load("en_core_web_sm")
 
-#********************************************************************Input*********************************************************************************
-# Choice menu and choice and text input from user
-intro()
-choice = int(input("Enter choice 1 or 2"))
-
-test_data = input("Enter the text")
-
-
-#************************************************************Offensiveness and sentiment analysis***********************************************************
-# Intializing stopwords and punctuation
-stopword =list(STOP_WORDS)
-punctuation = punctuation + '\n'
-
-# Read csv file from system and creating dataframe and labelling it.
+# Load and clean dataset
 df = pd.read_csv("twitter_data.csv")
-df['labels'] = df['class'].map({0 : "Hate Speech Detected" , 1: "Offensive language Detected" , 2: "No hate and offesive speech" })
+df.dropna(subset=['tweet', 'labels'], inplace=True)
+df['labels'] = df['labels'].astype(int)
+df['labels'] = df['labels'].map({
+    0: "Hate Speech Detected",
+    1: "Offensive language Detected",
+    2: "No hate and offensive speech"
+})
 df = df[['tweet', 'labels']]
 
+# Define stopwords for manual cleaning
+stopword = list(spacy.lang.en.stop_words.STOP_WORDS)
 
-# applying cleaning to the text
-#Cleaning the data
+# Clean text function
 def clean(text):
     text = str(text).lower()
-    text = re.sub('\[.*?\]','',text)
-    text = re.sub('https?://S+|www\.\S+','',text)
-    text = re.sub('[%s]'% re.escape(string.punctuation),'',text)
-    text = re.sub('\n','',text)
-    text = re.sub('\w*\d\w*','', text)
-    text = [word for word in text.split(' ') if word not in stopword]
-    text = " ".join(text)
-    return text
+    text = re.sub(r'\[.*?\]', '', text)
+    text = re.sub(r'https?://\S+|www\.\S+', '', text)
+    text = re.sub('[%s]' % re.escape(string.punctuation), '', text)
+    text = re.sub(r'\n', '', text)
+    text = re.sub(r'\w*\d\w*', '', text)
+    text = [word for word in text.split() if word not in stopword]
+    return " ".join(text)
 
+# Clean all tweets
 df["tweet"] = df["tweet"].apply(clean)
 
+# Feature extraction using TF-IDF
+x = df["tweet"]
+y = df["labels"]
+cv = TfidfVectorizer(max_features=5000)
+x_vector = cv.fit_transform(x)
 
-# creating x and y
-x = np.array(df["tweet"])
-y = np.array(df["labels"])
+# Gradient Boosting Classifier
+clf = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, max_depth=3, random_state=42)
+clf.fit(x_vector, y)
 
+# Streamlit UI
+st.title("🛡️ Cyberbullying Analyzer with Summary")
 
-# Fit and train the model using tweet data
-cv = CountVectorizer()
-x = cv.fit_transform(x)
-x_train,x_test,y_train,y_test = train_test_split(x , y , test_size=.33 , random_state= 42)
-clf = DecisionTreeClassifier()
-clf.fit(x_train,y_train)
+choice = st.radio("Choose a function", ["Summarize Text", "Detect Offensiveness"])
+user_input = st.text_area("Enter your text here:")
 
+if st.button("Analyze") and user_input.strip() != "":
+    if choice == "Summarize Text":
+        doc = nlp(user_input)
+        word_freq = word_freq_counter(doc, {})
+        if word_freq:
+            max_freq = max(word_freq.values())
+            word_freq = {word: freq / max_freq for word, freq in word_freq.items()}
+            sent_token = [sent for sent in doc.sents]
+            sent_score = sentence_score(sent_token, {}, word_freq)
+            num_lines = max(1, int(len(sent_score) * 0.3))
+            summary = nlargest(n=num_lines, iterable=sent_score, key=sent_score.get)
 
+            st.subheader("📄 Summary:")
+            for line in summary:
+                st.write(line.text)
+        else:
+            st.warning("Not enough content to summarize.")
 
-#***********************************************************************Text summarizer***************************************************************************
-doc = nlp(test_data)
-tokens = [token.text for token in doc]
+    elif choice == "Detect Offensiveness":
+        clean_input = clean(user_input)
+        vec = cv.transform([clean_input]).toarray()
+        probs = clf.predict_proba(vec)[0]
+        predicted_label = clf.classes_[np.argmax(probs)]
+        confidence = np.max(probs)
 
-# Text cleaning providing word frequency counter
-word_freq = {}
-stop_words = list(STOP_WORDS)
-word_freq = word_freq_counter(doc , word_freq)
+        st.subheader("🚨 Prediction:")
+        if confidence < 0.5:
+            st.info("🟡 The model is unsure – the language appears neutral or ambiguous.")
+        elif "No hate" in predicted_label:
+            st.success(predicted_label)
+        elif "Offensive" in predicted_label:
+            st.warning(predicted_label)
+        else:
+            st.error(predicted_label)
 
-#Normalizing the word counter 
-max_freq = max(word_freq.values())
-for word in word_freq.keys():
-    word_freq[word] = word_freq[word] / max_freq
-  
-# sentence tokenizer
-sent_token = [sent for sent in doc.sents]
-sent_score = {}
-sent_score = sentence_score(sent_token , sent_score , word_freq)
-
-
-
-#**************************************************************************Output************************************************************************************
-
-# selecting 30% sentence with max score and summarizing it
-if choice==1:
-    num_lines = math.ceil(len(sent_score) * .3)
-    summary = nlargest(n = num_lines, iterable = sent_score , key = sent_score.get)
-    print("\n\n Summary of the text is : \n\n")
-    print(summary)
-
-
-# Predicting the speech sentiments and offensiveness
-if choice==2:
-    df = cv.transform([test_data]).toarray()
-    print("\n\n sentiments/Offensiveness of the text is : \n\n")
-    print(clf.predict(df))
             
+     
