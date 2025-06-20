@@ -1,6 +1,6 @@
 # Cyberbullying_Recognizer_and_Summarizer
 ### 🔗 Live Demo
-Check out the deployed app [Project Demo](https://cyberbullying-azcvckezgad2bmfx.southeastasia-01.azurewebsites.net/)
+Check out the deployed app on MS Azure [Project Demo](https://cyberbullying-azcvckezgad2bmfx.southeastasia-01.azurewebsites.net/)
 
 ### 📂 GitHub Repository
 Visit the [Cyberbullying NLP Project](https://github.com/Bhanuraj23m0316iitb/Cyberbullying-Detection-and-Summarizer)
