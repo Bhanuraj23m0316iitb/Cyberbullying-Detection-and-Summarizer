@@ -1,7 +1,7 @@
 # Cyberbullying_Recognizer_and_Summarizer
 ### 🔗 Live Demo
 Check out the deployed app on MS Azure [Project Demo](https://cyberbullying-azcvckezgad2bmfx.southeastasia-01.azurewebsites.net/)
-Docker image link on docker hub  [Docker Image](https://hub.docker.com/repository/docker/bhanurajiitb23m0316/cyberbullying/tags)
+- Docker image link on docker hub  [Docker Image](https://hub.docker.com/repository/docker/bhanurajiitb23m0316/cyberbullying/tags)
 
 ### 📂 GitHub Repository
 Visit the [Cyberbullying NLP Project](https://github.com/Bhanuraj23m0316iitb/Cyberbullying-Detection-and-Summarizer)
